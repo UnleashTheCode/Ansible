@@ -6,27 +6,32 @@
     reporting_path: /home/kali/Pentest
 
     scripts:
-      - path: "linpeas/"
-        exe: "linpeas_fat.sh"
-      - path: "resources/lynis/"
-        exe: "lynis.sh"
+      - path: "linpeas/linpeas_fat.sh"
+        name: "linpeas"
+        arguments: "-a"
+      - path: "resources/lynis/lynis.sh"
+        name: "lynis"
+        argument: "audit system"
+      - path: "resources/lse.sh"
+        name: "lse"
+        arguments: "-i -l 2"
 
   tasks:
     - block:
         - name: Deploy resources
           ansible.builtin.copy:
-            src: "{{ uploader_path }}/linux/{{ item.path }}{{ item.exe }}"
+            src: "{{ uploader_path }}/linux/{{ item.path }}"
             dest: /tmp/pentest/
 
         - name: Run scans
-          ansible.builtin.shell: "bash /tmp/pentest/{{ item.exe }} | tee /tmp/pentest/{{ item.exe }}.log"
+          ansible.builtin.shell: "bash /tmp/pentest/{{ item.name }}.sh {{ item.arguments }} | tee /tmp/pentest/{{ item.name }}.log"
           args:
             executable: /bin/bash
-            creates: "/tmp/pentest/{{ item.exe }}.log"
+            creates: "/tmp/pentest/{{ item.name }}.log"
 
         - name: Copy the entire pentest folder to the hostname folder on local machine
           ansible.builtin.fetch:
-            src: "/tmp/pentest/{{ item.exe }}.log"
+            src: "/tmp/pentest/{{ item.name }}.log"
             dest: "{{ reporting_path }}/{{ inventory_hostname }}/"
             flat: yes
             mode: '0644'
