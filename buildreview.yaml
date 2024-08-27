@@ -1,0 +1,63 @@
+- name: Build Review Linux
+  hosts: linux
+  strategy: free
+  vars:
+    uploader_path: /home/kali/uploader
+    reporting_path: /home/kali/Pentest
+
+    scripts:
+      - path: "linpeas/"
+        exe: "linpeas_fat.sh"
+      - path: "resources/lynis/"
+        exe: "lynis.sh"
+
+  tasks:
+    - block:
+        - name: Deploy resources
+          ansible.builtin.copy:
+            src: "{{ uploader_path }}/linux/{{ item.path }}{{ item.exe }}"
+            dest: /tmp/pentest/
+
+        - name: Run scans
+          ansible.builtin.shell: "bash /tmp/pentest/{{ item.exe }} | tee /tmp/pentest/{{ item.exe }}.log"
+          args:
+            executable: /bin/bash
+            creates: "/tmp/pentest/{{ item.exe }}.log"
+
+        - name: Copy the entire pentest folder to the hostname folder on local machine
+          ansible.builtin.fetch:
+            src: "/tmp/pentest/{{ item.exe }}.log"
+            dest: "{{ reporting_path }}/{{ inventory_hostname }}/"
+            flat: yes
+            mode: '0644'
+
+      loop: "{{ scripts }}"
+      loop_control:
+        loop_var: item
+
+    - block:
+        - name: Teddy deploy
+          ansible.builtin.copy:
+            src: "{{ uploader_path }}/linux/teddy.sh"
+            dest: /tmp/pentest/teddy.sh
+
+        - name: Run teddy.sh
+          ansible.builtin.shell: "bash /tmp/pentest/teddy.sh"
+          args:
+            executable: /bin/bash
+            creates: "/tmp/pentest/teddy.log"
+
+        - name: Find all files in the teddy folder
+          ansible.builtin.find:
+            paths: "/tmp/pentest/teddy/"
+            recurse: yes
+          register: teddy_files
+
+        - name: Fetch teddy folder files to local machine
+          ansible.builtin.fetch:
+            src: "{{ item.path }}"
+            dest: "{{ reporting_path }}/{{ inventory_hostname }}/teddy/"
+            flat: yes
+          loop: "{{ teddy_files.files }}"
+          loop_control:
+            loop_var: item
