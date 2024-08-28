@@ -1,0 +1,20 @@
+[linux]
+10.10.12.13 #user and password can be mentioned here
+
+[windows]
+192.168.13.12
+
+[linux:vars]
+ansible_connection=ssh
+ansible_user=<user>
+ansible_password=<password>
+
+[windows:vars]
+ansible_user=<user>
+ansible_password=<password>
+ansible_connection=winrm
+ansible_winrm_server_cert_validation=ignore
+
+[machines:children] #this is all machines
+linux
+windows
