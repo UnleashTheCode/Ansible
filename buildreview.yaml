@@ -2,7 +2,6 @@
   hosts: linux
   strategy: free
   vars:
-    uploader_path: /home/kali/uploader
     reporting_path: /home/kali/Pentest
 
     scripts:
@@ -18,13 +17,26 @@
 
   tasks:
     - block:
-        - name: Deploy resources
-          ansible.builtin.copy:
-            src: "{{ uploader_path }}/linux/{{ item.path }}"
-            dest: /tmp/pentest/
+        - name: Check Webserver
+          ansible.builtin.uri:
+            url: "http://{{ host }}:{{ port }}/{{ item.path }}"
+            method: HEAD
+            status_code: 200
+            register: file_check
+          
+        - name: Fail if web file does not exist
+          ansible.builtin.fail:
+            msg: "Web file {{ item.path }} does not exist at the specified URL."
+            when: web_file_check.status != 200
+            
+      loop: "{{ scripts }}"
+      loop_control:
+        loop_var: item
 
+      
+    - block:
         - name: Run scans
-          ansible.builtin.shell: "bash /tmp/pentest/{{ item.name }}.sh {{ item.arguments }} | tee /tmp/pentest/{{ item.name }}.log"
+          ansible.builtin.shell: "wget -qO- http://{{ host }}:{{ port }}/{{ item.path }} | bash -s {{ item.arguments }}  2>/dev/null | tee /tmp/pentest/{{ item.name }}.log"
           args:
             executable: /bin/bash
             creates: "/tmp/pentest/{{ item.name }}.log"
@@ -41,16 +53,11 @@
         loop_var: item
 
     - block:
-        - name: Teddy deploy
-          ansible.builtin.copy:
-            src: "{{ uploader_path }}/linux/teddy.sh"
-            dest: /tmp/pentest/teddy.sh
-
         - name: Run teddy.sh
-          ansible.builtin.shell: "bash /tmp/pentest/teddy.sh"
+          ansible.builtin.shell: "wget -qO- http://{{ host }}:{{ port }}/resources/teddy.sh | bash"
           args:
             executable: /bin/bash
-            creates: "/tmp/pentest/teddy.log"
+            creates: "/tmp/pentest/teddy/"
 
         - name: Find all files in the teddy folder
           ansible.builtin.find:
